@@ -3,10 +3,7 @@ from unittest2 import TestCase
 from pybot.matchers import Matcher, RegexMatcher, DirectMessageMatcher
 from pybot.messages import Message
 
-
-class DummyMatcher(Matcher):
-    def match(self, message):
-        return True
+from .utils import DummyMatcher
 
 
 class RegexMatcherTests(TestCase):

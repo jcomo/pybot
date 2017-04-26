@@ -2,10 +2,7 @@ from unittest2 import TestCase
 
 from pybot.events import EventBus
 
-
-class Container(object):
-    def __init__(self):
-        self.value = None
+from .utils import Container
 
 
 class EventBusTests(TestCase):
