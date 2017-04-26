@@ -20,5 +20,10 @@ def open_pod_bay_doors(res):
         res.reply("Opening {} doors".format(door_type))
 
 
+@robot.on('connected')
+def on_connected(data):
+    robot.send('shell', "I am here world")
+
+
 if __name__ == '__main__':
     robot.run()

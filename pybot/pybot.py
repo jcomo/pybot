@@ -1,24 +1,41 @@
 import re
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from os import environ as env
 
 from six import print_
 from six.moves import input
 
-User = namedtuple('User', ['id', 'name', 'room'])
+User = namedtuple('User', ['id', 'name'])
+
+
+class EventBus(object):
+    def __init__(self):
+        self._listeners = defaultdict(list)
+
+    def publish(self, type, data=None):
+        for listener in self._listeners[type]:
+            listener(data)
+
+    def subscribe(self, type, f):
+        listeners = self._listeners[type]
+        if f not in listeners:
+            listeners.append(f)
+
+    def unsubscribe(self, type, f):
+        self._listeners[type].remove(f)
 
 
 class Message(object):
-    def __init__(self, user):
+    def __init__(self, user, room):
         self.user = user
-        self.room = user.room
+        self.room = room
         self.text = None
         self.id = None
 
 
 class TextMessage(Message):
-    def __init__(self, user, text, id):
-        super(TextMessage, self).__init__(user)
+    def __init__(self, user, room, text, id):
+        super(TextMessage, self).__init__(user, room)
         self.text = text
         self.id = id
 
@@ -71,6 +88,8 @@ class ShellAdapter(Adapter):
         except ValueError:
             user_id = 1
 
+        self.robot.emit('connected')
+
         while True:
             try:
                 text = input('{}> '.format(self.robot.name))
@@ -81,10 +100,11 @@ class ShellAdapter(Adapter):
             if text == 'quit':
                 break
 
-            user = User(user_id, name, 'shell')
-            message = TextMessage(user, text, 'message_id')
+            user = User(user_id, name)
+            message = TextMessage(user, 'shell', text, 'message_id')
             self.receive(message)
 
+        self.robot.emit('disconnected')
         self.robot.shutdown()
 
 
@@ -112,6 +132,7 @@ class Robot(object):
         self.name = name
         self._load_adapter()
         self._listeners = []
+        self._bus = EventBus()
 
     def _load_adapter(self):
         # TODO: dynamically load the adapter based on args
@@ -124,6 +145,24 @@ class Robot(object):
     def shutdown(self):
         # TODO
         pass
+
+    def send(self, room, text):
+        message = Message(None, room)
+        self.adapter.send(message, text)
+
+    def reply(self, user, room, text):
+        message = Message(user, room)
+        self.adapter.reply(message, text)
+
+    def on(self, type):
+        def wrapper(f):
+            self._bus.subscribe(type, f)
+            return f
+
+        return wrapper
+
+    def emit(self, type, data=None):
+        self._bus.publish(type, data)
 
     def receive(self, message):
         for matcher, response_func in self._listeners:
@@ -143,16 +182,17 @@ class Robot(object):
         return wrapper
 
     def hear(self, pattern):
-        # TODO: wraps?
         def wrapper(f):
             matcher = TextMatcher(pattern)
             self._add_listener(matcher, f)
+            return f
 
         return wrapper
 
     def listen(self, matcher):
         def wrapper(f):
             self._add_listener(matcher, f)
+            return f
 
         return wrapper
 
