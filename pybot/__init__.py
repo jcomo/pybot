@@ -1,4 +1,5 @@
-from .pybot import Robot
+from .matchers import Matcher
+from .robot import Robot
 
 
 robot = Robot()
