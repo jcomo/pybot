@@ -1,4 +1,5 @@
 import re
+import traceback
 from collections import namedtuple, defaultdict
 from os import environ as env
 
@@ -26,16 +27,9 @@ class EventBus(object):
 
 
 class Message(object):
-    def __init__(self, user, room):
+    def __init__(self, user, room, text, id=None):
         self.user = user
         self.room = room
-        self.text = None
-        self.id = None
-
-
-class TextMessage(Message):
-    def __init__(self, user, room, text, id):
-        super(TextMessage, self).__init__(user, room)
         self.text = text
         self.id = id
 
@@ -80,7 +74,6 @@ class ShellAdapter(Adapter):
         self.send(message, '{}: {}'.format(message.user.name, text))
 
     def run(self):
-        stopped = False
         name = env.get('PYBOT_SHELL_USER_NAME', 'Shell')
 
         try:
@@ -101,7 +94,7 @@ class ShellAdapter(Adapter):
                 break
 
             user = User(user_id, name)
-            message = TextMessage(user, 'shell', text, 'message_id')
+            message = Message(user, 'shell', text)
             self.receive(message)
 
         self.robot.emit('disconnected')
@@ -112,7 +105,7 @@ class Response(object):
     def __init__(self, robot, message, match):
         self.robot = robot
         self.message = message
-        self.match = match.group
+        self.match = match
 
     def send(self, text):
         self.robot.adapter.send(self.message, text)
@@ -143,16 +136,15 @@ class Robot(object):
         self.adapter.run()
 
     def shutdown(self):
-        # TODO
-        pass
+        self.adapter.close()
 
     def send(self, room, text):
-        message = Message(None, room)
-        self.adapter.send(message, text)
+        fake_message = Message(None, room, None)
+        self.adapter.send(fake_message, text)
 
     def reply(self, user, room, text):
-        message = Message(user, room)
-        self.adapter.reply(message, text)
+        fake_message = Message(user, room, None)
+        self.adapter.reply(fake_message, text)
 
     def on(self, type):
         def wrapper(f):
@@ -165,25 +157,24 @@ class Robot(object):
         self._bus.publish(type, data)
 
     def receive(self, message):
-        for matcher, response_func in self._listeners:
-            match = matcher.match(message)
-            if not match:
-                continue
+        for listener in self._listeners:
+            try:
+                listener(message)
+            except:
+                traceback.print_exc()
 
-            response = Response(self, message, match)
-            response_func(response)
 
     def respond(self, pattern):
         def wrapper(f):
-            matcher = TextMatcher(pattern)
-            wrapper = NameMatcher(matcher, self.name)
+            matcher = RegexMatcher(pattern)
+            wrapper = DirectMessageMatcher(matcher, self.name)
             self._add_listener(wrapper, f)
 
         return wrapper
 
     def hear(self, pattern):
         def wrapper(f):
-            matcher = TextMatcher(pattern)
+            matcher = RegexMatcher(pattern)
             self._add_listener(matcher, f)
             return f
 
@@ -196,8 +187,25 @@ class Robot(object):
 
         return wrapper
 
-    def _add_listener(self, matcher, response_func):
-        self._listeners.append((matcher, response_func))
+    def _add_listener(self, matcher, func):
+        listener = Listener(self, matcher, func)
+        self._listeners.append(listener)
+
+
+class Listener(object):
+    def __init__(self, robot, matcher, func):
+        self.robot = robot
+        self.matcher = matcher
+        self.func = func
+
+    def __call__(self, message):
+        match = self.matcher.match(message)
+        if not match:
+            return False
+
+        response = Response(self.robot, message, match)
+        self.func(response)
+        return True
 
 
 class Matcher(object):
@@ -205,7 +213,7 @@ class Matcher(object):
         pass
 
 
-class TextMatcher(Matcher):
+class RegexMatcher(Matcher):
     def __init__(self, pattern):
         self.regex = re.compile(pattern)
 
@@ -214,7 +222,7 @@ class TextMatcher(Matcher):
             return self.regex.search(message.text)
 
 
-class NameMatcher(Matcher):
+class DirectMessageMatcher(Matcher):
     def __init__(self, wrapped, name):
         self.wrapped = wrapped
         self.name = name.lower()

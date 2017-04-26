@@ -13,7 +13,7 @@ def say_hi(res):
 
 @robot.hear(r"open the (.*?) doors")
 def open_pod_bay_doors(res):
-    door_type = res.match(1)
+    door_type = res.match.group(1)
     if door_type == 'pod bay':
         res.reply("I'm afraid I can't let you do that")
     else:
