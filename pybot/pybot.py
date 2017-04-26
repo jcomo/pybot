@@ -2,6 +2,9 @@ import re
 from collections import namedtuple
 from os import environ as env
 
+from six import print_
+from six.moves import input
+
 User = namedtuple('User', ['id', 'name', 'room'])
 
 
@@ -70,7 +73,7 @@ class ShellAdapter(Adapter):
 
         while True:
             try:
-                text = raw_input('{}> '.format(self.robot.name))
+                text = input('{}> '.format(self.robot.name))
             except EOFError:
                 print
                 break
@@ -188,27 +191,3 @@ class NameMatcher(Matcher):
         if first_token == self.name:
             return self.wrapped.match(message)
 
-
-robot = Robot()
-
-@robot.hear(r"^badger$")
-def badger(res):
-    res.send("thangs")
-
-
-@robot.respond("say hi")
-def say_hi(res):
-    res.reply("hello")
-
-
-@robot.hear(r"open the (.*?) doors")
-def open_pod_bay_doors(res):
-    door_type = res.match(1)
-    if door_type == 'pod bay':
-        res.reply("I'm afraid I can't let you do that")
-    else:
-        res.reply("Opening {} doors".format(door_type))
-
-
-if __name__ == '__main__':
-    robot.run()
