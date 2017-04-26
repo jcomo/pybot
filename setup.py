@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'hubot-python',
-    version = '0.0.1',
+    version = '0.1.0',
     description = "A python port of the popular Hubot",
     url = 'https://github.com/jcomo/pybot',
     author = 'Jonathan Como',
