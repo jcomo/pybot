@@ -15,10 +15,10 @@ class RegexMatcher(Matcher):
             return self.regex.search(message.text)
 
 
-class DirectMessageMatcher(Matcher):
-    def __init__(self, wrapped, name):
+class RobotNameMatcher(Matcher):
+    def __init__(self, wrapped, robot):
         self.wrapped = wrapped
-        self.name = name.lower()
+        self.robot = robot
 
     def match(self, message):
         if not message.text:
@@ -28,6 +28,8 @@ class DirectMessageMatcher(Matcher):
         if not tokens:
             return
 
-        first_token = tokens[0].lstrip(' ').rstrip(' :-=')
-        if first_token == self.name:
+        name = self.robot.name.lower()
+        first_token = tokens[0].lstrip(' @').rstrip(' :-=')
+
+        if first_token == name:
             return self.wrapped.match(message)

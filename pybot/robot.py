@@ -3,7 +3,7 @@ import traceback
 from .adapters import ShellAdapter
 from .events import EventBus
 from .listener import Listener
-from .matchers import DirectMessageMatcher, RegexMatcher
+from .matchers import RegexMatcher, RobotNameMatcher
 from .messages import Message
 
 
@@ -54,7 +54,7 @@ class Robot(object):
     def respond(self, pattern):
         def wrapper(f):
             matcher = RegexMatcher(pattern)
-            wrapper = DirectMessageMatcher(matcher, self.name)
+            wrapper = RobotNameMatcher(matcher, self)
             self._add_listener(wrapper, f)
 
         return wrapper

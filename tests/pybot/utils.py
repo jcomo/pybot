@@ -12,3 +12,8 @@ class DummyMatcher(Matcher):
 
     def match(self, message):
         return self._match
+
+
+class FakeRobot(object):
+    def __init__(self, name):
+        self.name = name
